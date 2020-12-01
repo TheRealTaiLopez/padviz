@@ -3,8 +3,16 @@
 The *Padviz*ualizer is a small UI tool, written in python2 with the pygame 1.9.3 library, which provides libSDL 2.0 bindings.
 Using vectorgraphic templates it displays 2 dimensional polygons depending on your gamepad inputs.
 
-Originally it was designed for Trackmania streams/videos so people can see what buttons or analog inputs you are pressing. 
+Originally it was designed for Trackmania streams/videos so people can see what buttons or analog inputs you are pressing.
 Currently displayed inputs are limited to trackmania gameplay standards: Acceleration (digital), breaking (digital) and steering (analog).
+
+## INSTALLATION
+
+Install dependencies with the following command:
+
+```bash
+pip install -r requirements.txt
+```
 
 ## DEVELOPMENT
 

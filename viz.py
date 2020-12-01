@@ -438,6 +438,7 @@ else:
 			logger.warning("could not find deadzone setting in config file, falling back to default")
 ## END LOADING config
 
+# Main loop
 pygame.init()
 screen = pygame.display.set_mode([WW, WH], pygame.RESIZABLE | pygame.DOUBLEBUF)
 screen.set_alpha(None)	## speedup
@@ -463,6 +464,7 @@ try:
 			APP_LOOP = False
 		
 		elif event.type==pygame.JOYAXISMOTION or event.type==pygame.JOYBALLMOTION or event.type==pygame.JOYHATMOTION:
+			
 			VALUE_STEER = float(joystick.get_axis(controls['steer']))
 
 		elif event.type==pygame.JOYBUTTONUP or event.type==pygame.JOYBUTTONDOWN:
