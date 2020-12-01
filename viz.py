@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf_8 -*-
 import sys, os, time, simplejson, pygame, struct
-import logging as L
+import logging as logger
 import xml.etree.ElementTree as ET
 from collections import deque
 from random import randint
@@ -21,20 +21,20 @@ from random import randint
 	- OPTIMIZE https://stackoverflow.com/questions/6395923/any-way-to-speed-up-python-and-pygame
 """
 
-# L.basicConfig(filename='events.log', format='%(asctime)s: %(message)s', filemode='w', level=L.DEBUG)	# production
-L.basicConfig(filename='events.log', format='%(asctime)s: %(message)s', level=L.DEBUG) 	# development
+# logger.basicConfig(filename='events.log', format='%(asctime)s: %(message)s', filemode='w', level=logger.DEBUG)	# production
+logger.basicConfig(filename='events.log', format='%(asctime)s: %(message)s', level=logger.DEBUG) 	# development
 
 # the working directory of this script
 # pwd = str(os.path.dirname(os.path.realpath(__file__)))	# __file__ is not known after py2exe compilation
 pwd = os.getcwd()
-L.debug('pwd is [%s]', pwd)
+logger.debug('pwd is [%s]', pwd)
 
 ###### CONFIG VARS ######
 CONFIG_FILE_PATH = os.path.join(pwd,'config.json')
-L.debug('CONFIG_FILE_PATH=[%s]', CONFIG_FILE_PATH)
+logger.debug('CONFIG_FILE_PATH=[%s]', CONFIG_FILE_PATH)
 
 SHAPES_DIRECTORY = os.path.join(pwd,'SHAPES')
-L.debug('SHAPES_DIRECTORY=[%s]', SHAPES_DIRECTORY)
+logger.debug('SHAPES_DIRECTORY=[%s]', SHAPES_DIRECTORY)
 
 colors = {
 	'ACC' : (64, 255, 0),
@@ -100,6 +100,7 @@ VALUE_BRK = 0
 
 def shape():
 	return SHAPES[0]["KEY"]
+
 def load_shapes(d):
 	# read the directory for svg files and save the paths to the SHAPES[] list
 	path = os.path.abspath(d)
@@ -111,21 +112,21 @@ def load_shapes(d):
 				try:
 					open_test = open(tmp)
 				except PermissionError as pe:
-					L.error("PermissionError > cannot open and read file in path [%s]", tmp)
+					logger.error("PermissionError > cannot open and read file in path [%s]", tmp)
 				else:
 					add = {
 						"KEY": os.path.basename(tmp).upper().replace(".SVG",''),
 						"PATH": os.path.abspath(tmp).lower()
 					}
-					L.debug("loaded shape [%s] [%s]", add['KEY'], add['PATH'])
+					logger.debug("loaded shape [%s] [%s]", add['KEY'], add['PATH'])
 					SHAPES.append(add)
 
 	if len(SHAPES) > 0:
-		SHAPES.sort()
-		L.debug("sorted loaded shapes ")
+		logger.debug("loaded shapes")
 		return False
 	else:
 		return True
+
 def cycle_viz(target):
 	global SHAPES
 	global COO
@@ -154,12 +155,14 @@ def cycle_viz(target):
 	
 	# load & correct scale the vector paths
 	COO = parse_svg(SHAPES[0]['PATH'], WW, WH)
-	L.info("CURRENT VIZ = [%s]",shape())
+	logger.info("CURRENT VIZ = [%s]",shape())
+
 def num(s):
 	try:
 		return int(s)
 	except ValueError:
 		return float(s)
+
 def parse_svg(filepath, ww, wh):
 	# return a touple list of absolute coordinates to paint pygame polys with
 	ll = {}
@@ -174,9 +177,9 @@ def parse_svg(filepath, ww, wh):
 	# print "BW=[%s], BH=[%s]" % ( str(BW), str(BH) )
 
 	elements = tree.findall(".//{0}path".format("{http://www.w3.org/2000/svg}"))
-	for a in elements:
-		u = a.get('d').split()
-		l = []
+	for element in elements:
+		u = element.get('d').split()
+		coordinate_list = []
 		lastCommand = ''
 		for c in u:
 			co = c.split(',')
@@ -188,13 +191,14 @@ def parse_svg(filepath, ww, wh):
 					x = num(float(co[0])*rel_H) + ((float(WW)-float(BW*rel_H))/2)
 					y = num(float(float(co[1])/BH)*WH)
 				# print a.get('id') + " >> " + str(x) + " | " + str(y)
-				l.append( (x, y) )
+				coordinate_list.append( (x, y) )
 			else:
 				lastCommand = co[0]
-		ll[a.get("id")] = l
+		ll[element.get("id")] = coordinate_list
 	ll["BW"] = BW
 	ll["BH"] = BH
 	return ll
+
 def set_config():
 	WRITETHIS = {
 		'color_acc':colors["ACC"], 
@@ -212,12 +216,13 @@ def set_config():
 		'controls': controls
 		# 'ANTIALIASING_ENABLED':ANTIALIASING_ENABLED
 	}
-	L.debug('current configuration = %s',WRITETHIS)
+	logger.debug('current configuration = %s',WRITETHIS)
 
 	f = open(CONFIG_FILE_PATH, 'w')
 	simplejson.dump(WRITETHIS, f)
 	f.close()
-	L.info('saved configuration to [%s]',CONFIG_FILE_PATH)
+	logger.info('saved configuration to [%s]',CONFIG_FILE_PATH)
+
 def load_png_dimensions(filepath):
 	with open(os.path.abspath(filepath), 'rb') as f:
 		data = f.read(24)
@@ -229,6 +234,7 @@ def load_png_dimensions(filepath):
 			return (width, height)
 		else:
 			raise Exception('[%s] is not a png image' % filepath)
+
 def frame_resize(event):
 	try:
 		global WW
@@ -239,9 +245,9 @@ def frame_resize(event):
 			WH = event.h
 		global screen
 		screen = pygame.display.set_mode((WW, WH), pygame.RESIZABLE | pygame.DOUBLEBUF)
-		L.info("frame resized to (%s,%s)",str(WW), str(WH))
+		logger.info("frame resized to (%s,%s)",str(WW), str(WH))
 	except Exception as e:
-		L.error(e)
+		logger.error(e)
 
 class PngClickArea:
 	def __init__(self, screen, xpos, ypos, imgpath):
@@ -270,21 +276,25 @@ class PngClickArea:
 		self.dims = dims
 		self.img = pygame.image.load(imgpath).convert_alpha()
 		self.hovers = False
+
 class TextPrint:
 	def __init__(self):
 		self.reset()
 		self.font = pygame.font.SysFont("Verdana",13)
+
 	def screenprint(self, screen, textString):
 		textBitmap = self.font.render(textString, True, (0,0,0))
 		screen.blit(textBitmap, [self.x, self.y])
 		# pygame.display.flip()
 		self.y += self.line_height
+
 	def screenprint_buf(self, screen, textString, posX, posY):
 		self.x = int(posX)
 		self.y = int(posY)
 		textBitmap = self.font.render(textString, True, (0,0,0))
 		screen.blit(textBitmap, [self.x, self.y])
 		# pygame.display.flip()
+
 	def reset(self):
 		self.x = 10
 		global SQR
@@ -294,6 +304,7 @@ class TextPrint:
 		else:
 			self.y = 10
 		self.line_height = 15
+
 	def bottom_print(self,screen, textString):
 		textBitmap = self.font.render(textString, True, (0,0,0))
 		global WH
@@ -304,16 +315,21 @@ class TextPrint:
 		except:
 			pass
 		self.y = int(WH-h-5)
-		print self.y
+		print(self.y)
 		screen.blit(textBitmap, [self.x, self.y])
 		pygame.display.flip()
+
+
 class DeadzoneWidget:
+
 	def __init__(self, total_dims, deadzone):
 		self.total_dims = total_dims
 		self.dz_x = deadzone[0]
 		self.dz_y = deadzone[1]
+
 	def draw(self, screen):
 		screen.blit()
+
 
 ######################
 ## INITIAL SEQUENCE ##
@@ -321,14 +337,14 @@ class DeadzoneWidget:
 ## LOADING shape files
 abort = load_shapes(SHAPES_DIRECTORY)
 if abort:
-	L.error("Could not find any shape template in [%s]",SHAPES_DIRECTORY)
+	logger.error("Could not find any shape template in [%s]",SHAPES_DIRECTORY)
 	sys.exit(1)
 ## END LOADING shape files
 
 ## LOADING config and overwriting defaults
 if not os.path.exists(CONFIG_FILE_PATH) or not os.path.isfile(CONFIG_FILE_PATH):
 	# if no config file is available, force to show the calibration wizard
-	L.info("no config file found. Opening the calibration screen next")
+	logger.info("no config file found. Opening the calibration screen next")
 	MAINTENANCE = 11
 else:
 	c = None
@@ -337,7 +353,7 @@ else:
 		c = simplejson.load(f)
 		f.close()
 	except Exception:
-		L.warning("Could not load config file [%s]",CONFIG_FILE_PATH)
+		logger.warning("Could not load config file [%s]",CONFIG_FILE_PATH)
 		set_config()
 
 	if c is not None:
@@ -345,81 +361,81 @@ else:
 			# frame sizes
 			if int(c['window_w']) >= FRAME_SIZE_LIMIT[0][0] and int(c['window_w']) <= FRAME_SIZE_LIMIT[0][1]:
 				WW = int(c['window_w'])
-			# L.debug("loaded frame dimensions [%i,%i]",WW, WH)
+			# logger.debug("loaded frame dimensions [%i,%i]",WW, WH)
 			if int(c['window_h']) >= FRAME_SIZE_LIMIT[1][0] and int(c['window_h']) <= FRAME_SIZE_LIMIT[1][1]:
 				WH = int(c['window_h'])
 		except:
-			L.warning("error loading window dimensions from config file, falling back to default")
+			logger.warning("error loading window dimensions from config file, falling back to default")
 		try:
 			# find the last used VIZ Screen in the given viz list
 			if len(SHAPES) > 0:
 				for i,x in enumerate(SHAPES):
 					if x["KEY"] == c['initial_screen']:
 						cycle_viz(x["KEY"])
-						L.debug("Initial viz set to [%s]", x["KEY"])
+						logger.debug("Initial viz set to [%s]", x["KEY"])
 		except:
-			L.warning("could not find initial viz setting in config file, falling back to default")
+			logger.warning("could not find initial viz setting in config file, falling back to default")
 		try:
-			L.debug("loading controls indeces")
+			logger.debug("loading controls indeces")
 
-			L.debug("c['controls']['PAD_INDEX']=[%s]", c['controls']['PAD_INDEX'] )
+			logger.debug("c['controls']['PAD_INDEX']=[%s]", c['controls']['PAD_INDEX'] )
 			if c['controls']['PAD_INDEX'] in range(0, 99):
 				controls['PAD_INDEX'] = int(c['controls']['PAD_INDEX'])
 				
-			L.debug("c['controls']['acc']=[%s]", c['controls']['acc'] )
+			logger.debug("c['controls']['acc']=[%s]", c['controls']['acc'] )
 			if c['controls']['acc'] in range(0, 99):
 				controls['acc'] = int(c['controls']['acc'])
 				
-			L.debug("c['controls']['brk']=[%s]", c['controls']['brk'] )
+			logger.debug("c['controls']['brk']=[%s]", c['controls']['brk'] )
 			if c['controls']['brk'] in range(0, 99):
 				controls['brk'] = int(c['controls']['brk'])
 
-			L.debug("c['controls']['steer']=[%s]", c['controls']['steer'] )
+			logger.debug("c['controls']['steer']=[%s]", c['controls']['steer'] )
 			if c['controls']['steer'] in range(0, 99):
 				controls['steer'] = int(c['controls']['steer'])
 		except:
-			L.warning("could not find pad control mappings in config file, falling back to default")
+			logger.warning("could not find pad control mappings in config file, falling back to default")
 
 		try:
 			if c['color_acc']:
 				colors["ACC"] = c['color_acc']
-				L.debug("loaded acceleration color mapping [%s]",colors["ACC"])
+				logger.debug("loaded acceleration color mapping [%s]",colors["ACC"])
 
 			if c['color_brk']:
 				colors["BRK"] = c['color_brk']
-				L.debug("loaded break color mapping [%s]",colors["BRK"])
+				logger.debug("loaded break color mapping [%s]",colors["BRK"])
 				
 			if c['color_steer']:
 				colors["STEER"] = c['color_steer']
-				L.debug("loaded steering color mapping [%s]",colors["STEER"])
+				logger.debug("loaded steering color mapping [%s]",colors["STEER"])
 
 			if c['color_bg']:
 				colors["BG"] = c['color_bg']
-				L.debug("loaded background color mapping [%s]",colors["BG"])
+				logger.debug("loaded background color mapping [%s]",colors["BG"])
 		except Exception as e:
-			L.warning("could not find color mappings in config file, falling back to default")
+			logger.warning("could not find color mappings in config file, falling back to default")
 
 		try:
 			if int(c['PRINT_DEBUGS_ON']) == 1:
 				PRINT_DEBUGS_ON = True
-				L.debug("loaded debugs print flag = [%s]",str(PRINT_DEBUGS_ON))
+				logger.debug("loaded debugs print flag = [%s]",str(PRINT_DEBUGS_ON))
 		except Exception as e:
-			L.warning("could not load debug print flag in config file, falling back to default")
+			logger.warning("could not load debug print flag in config file, falling back to default")
 
 
 		try:
 			if int(c['prepaint']) == 0:
 				GREY_PREPAINT = False
-				L.debug("loaded grey prepaint setting = [%s]",str(GREY_PREPAINT))
+				logger.debug("loaded grey prepaint setting = [%s]",str(GREY_PREPAINT))
 		except Exception as e:
-			L.warning("could not find prepaint setting in config file, falling back to default")
+			logger.warning("could not find prepaint setting in config file, falling back to default")
 
 		try:
 			if float(c['deadzone'])>=0.0 and float(c['deadzone'])<=0.9:
 				DEADZONE = float(c['deadzone'])
-				L.debug("loaded deadzone setting [%s]", str(DEADZONE))
+				logger.debug("loaded deadzone setting [%s]", str(DEADZONE))
 		except Exception as e:
-			L.warning("could not find deadzone setting in config file, falling back to default")
+			logger.warning("could not find deadzone setting in config file, falling back to default")
 ## END LOADING config
 
 pygame.init()
@@ -427,7 +443,7 @@ screen = pygame.display.set_mode([WW, WH], pygame.RESIZABLE | pygame.DOUBLEBUF)
 screen.set_alpha(None)	## speedup
 pygame.display.set_caption("Padviz")
 pygame.joystick.init()
-L.info("detected pads [%u]", pygame.joystick.get_count())
+logger.info("detected pads [%u]", pygame.joystick.get_count())
 joystick = pygame.joystick.Joystick(controls['PAD_INDEX'])
 joystick.init()
 cycle_viz(None)	## initially load the first viz
@@ -442,7 +458,7 @@ try:
 			continue
 
 		elif event.type==pygame.QUIT or (event.type==pygame.KEYDOWN and event.key==pygame.K_ESCAPE):
-			L.debug("pygame.QUIT")
+			logger.debug("pygame.QUIT")
 			set_config()
 			APP_LOOP = False
 		
@@ -482,7 +498,7 @@ try:
 						irect = surf.get_rect()
 						screen.blit(surf, [ (SQR*int(i), 0), (SQR, SQR) ])
 					except Exception as e:
-						print e
+						print(e)
 						# pass
 
 				## when the topbar is show, on joystick events, the topbar will flicker since the whole screen gets repainted
@@ -772,8 +788,8 @@ try:
 			CALIBRATION_WIZARD_LOOP = True
 			while CALIBRATION_WIZARD_LOOP:
 
-				L.debug("found pads [%i]", pygame.joystick.get_count() )
-				L.debug("determine which pad to use for calibration")
+				logger.debug("found pads [%i]", pygame.joystick.get_count() )
+				logger.debug("determine which pad to use for calibration")
 
 				if pygame.joystick.get_count() > 1:
 					textPrint.screenprint(screen, "multiple pads are connected to your system")
@@ -795,7 +811,7 @@ try:
 								for b in range( J.get_numbuttons() ):
 									butt = J.get_button( b )
 									if butt:
-										L.debug(str.format("identified pad [{0}] ID=[{1}]", J.get_name(), str(J.get_id())))
+										logger.debug(str.format("identified pad [{0}] ID=[{1}]", J.get_name(), str(J.get_id())))
 										newcalibration['PAD_INDEX'] = pad
 										textPrint.screenprint(screen, str.format("active pad [{0}] ID=[{1}]", J.get_name(), str(J.get_id())))
 										textPrint.screenprint(screen, "")
@@ -923,7 +939,7 @@ try:
 
 		# DEADZONE SCREEN
 		elif MAINTENANCE == 12:
-			L.info("entered deadzone widget")
+			logger.info("entered deadzone widget")
 			TOPBAR_AREA_HOVERS = False
 			pygame.event.set_allowed([pygame.MOUSEBUTTONDOWN])
 			screen.set_clip(pygame.Rect(0,0,WW,WH))
@@ -971,7 +987,7 @@ try:
 						if mpos[0] in range(md[0][0], (md[1][0]+md[0][0]) ) and mpos[1] in range( md[0][1], (md[1][1]+md[0][1]) ):
 							d = float( float(mpos[0]-md[0][0]) / md[1][0] )
 							DEADZONE = round(d, 3)
-							L.info("Changed deadzone value to [%s]" % str(DEADZONE) )
+							logger.info("Changed deadzone value to [%s]" % str(DEADZONE) )
 
 				elif se.type == pygame.VIDEORESIZE:
 					frame_resize(se)
@@ -986,7 +1002,7 @@ try:
 			MAINTENANCE = 0
 
 except Exception as e:
-	L.error(e)
+	logger.error(e)
 	raise
 finally:
 	pygame.quit()

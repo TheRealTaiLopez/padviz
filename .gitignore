@@ -1,2 +1,6 @@
 config.json
 events.log
+
+.git/
+.vs/
+.vscode/
